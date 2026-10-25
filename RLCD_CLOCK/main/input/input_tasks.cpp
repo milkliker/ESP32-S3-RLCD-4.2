@@ -3,6 +3,7 @@
 
 #include "active_work_page_state_internal.h"
 #include "alarm_services.h"
+#include "alarm_rules_services.h"
 #include "app_metadata.h"
 #include "app_task_readiness.h"
 #include "battery_runtime_state.h"
@@ -237,6 +238,7 @@ void button_task(void *)
             if (boot_pressed_since == 0) {
                 boot_pressed_since = now;
                 boot_press_stopped_alert = alarm_stop_ringing_from_button() ||
+                                           alarm_rules_stop_ringing_from_button() ||
                                            pomodoro_stop_alert_from_button();
                 if (settings_page_requested()) {
                     settings_activity_record(now);
@@ -276,6 +278,7 @@ void button_task(void *)
                 key_press_opened_settings = false;
                 key_long_handled = false;
                 key_press_stopped_alert = alarm_stop_ringing_from_button() ||
+                                          alarm_rules_stop_ringing_from_button() ||
                                           pomodoro_stop_alert_from_button();
                 if (settings_page_requested()) {
                     settings_activity_record(now);

@@ -11,6 +11,7 @@ enum class RegularAppTaskId : uint8_t {
     kButton,
     kAlarm,
     kPomodoro,
+    kAlarmRules,
     kCount,
 };
 

@@ -29,8 +29,9 @@ constexpr const char *kSettingsHourlyText = "整点提醒 7:00 - 22:00";
 constexpr const char *kSettingsAllDayText = "全天提醒 0:00 - 24:00";
 constexpr const char *kSettingsPageSwitchText = "页面开关";
 constexpr const char *kSettingsPageOrderText = "页面顺序";
-constexpr const char *kSettingsAlarmOffText = "闹钟 --:--";
+constexpr const char *kSettingsAlarmOffText = "闹钟 无";
 constexpr const char *kSettingsAlarmOnFormat = "闹钟 %02d:%02d";
+constexpr const char *kSettingsAlarmRulesFormat = "闹钟 %u条 下次 %02u:%02u";
 constexpr const char *kSettingsXiaozhiAutoReturnText = "小智节能";
 constexpr const char *kSettingsGalleryRotationFormat = "图片切换 %s";
 constexpr const char *kSettingsOfflineFormat = "离线模式 %s";
@@ -122,7 +123,14 @@ void populate_settings_secondary_items(
         set_secondary_text(secondary_items,
                            kDisplaySettingsOrderItem,
                            kSettingsPageOrderText);
-        if (state.alarm_enabled) {
+        if (state.alarm_rule_count > 0 && state.alarm_rule_next_valid) {
+            format_secondary_text(secondary_items,
+                                  kDisplaySettingsAlarmItem,
+                                  kSettingsAlarmRulesFormat,
+                                  static_cast<unsigned>(state.alarm_rule_count),
+                                  static_cast<unsigned>(state.alarm_rule_next_hour),
+                                  static_cast<unsigned>(state.alarm_rule_next_minute));
+        } else if (state.alarm_enabled) {
             format_secondary_text(secondary_items,
                                   kDisplaySettingsAlarmItem,
                                   kSettingsAlarmOnFormat,

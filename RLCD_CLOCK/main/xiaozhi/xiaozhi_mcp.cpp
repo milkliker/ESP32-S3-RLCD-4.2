@@ -37,6 +37,7 @@ constexpr int kJsonRpcInternalError = -32603;
 constexpr size_t kToolResultTextLen = 256;
 
 using xiaozhi_mcp_schema::kDeviceStatusTool;
+using xiaozhi_mcp_schema::kAlarmRulesTool;
 using xiaozhi_mcp_schema::kDisableAlarmTool;
 using xiaozhi_mcp_schema::kPomodoroControlTool;
 using xiaozhi_mcp_schema::kSetAlarmTool;
@@ -50,6 +51,7 @@ using xiaozhi_mcp_json::add_string;
 std::atomic<bool> s_volume_save_pending{false};
 XiaozhiMcpAlarmHandler s_alarm_handler = nullptr;
 XiaozhiMcpAlarmDisableHandler s_alarm_disable_handler = nullptr;
+XiaozhiMcpAlarmRuleHandler s_alarm_rule_handler = nullptr;
 XiaozhiMcpCountdownHandler s_countdown_handler = nullptr;
 XiaozhiMcpPomodoroHandler s_pomodoro_handler = nullptr;
 XiaozhiMcpWeatherCityHandler s_weather_city_handler = nullptr;
@@ -245,6 +247,20 @@ cJSON *create_tool_call_result(const cJSON *params,
         }
         return result;
     }
+    if (strcmp(name->valuestring, kAlarmRulesTool) == 0 && s_alarm_rule_handler) {
+        XiaozhiMcpAlarmRuleRequest request = {};
+        if (!xiaozhi_mcp_arguments::parse_alarm_rules(arguments, &request)) {
+            *error_code = kJsonRpcInvalidParams;
+            *error_message = "Invalid alarm rules parameters";
+            return nullptr;
+        }
+        char result[512] = {};
+        return create_tool_content(
+            s_alarm_rule_handler(request, result, sizeof(result))
+                ? (result[0] ? result : "alarm rules updated")
+                : "alarm rules rejected",
+            true);
+    }
     if (strcmp(name->valuestring, kDisableAlarmTool) == 0 && s_alarm_disable_handler) {
         if (!allow_alarm_disable) {
             return create_tool_content("alarm unchanged while exiting Xiaozhi", false);
@@ -394,6 +410,7 @@ XiaozhiMcpMessageResult xiaozhi_mcp_handle_message(const char *message,
     } else if (strcmp(method, kMcpToolsListMethod) == 0) {
         result = xiaozhi_mcp_schema::create_tools_list_result(s_alarm_handler != nullptr,
                                                               s_alarm_disable_handler != nullptr,
+                                                              s_alarm_rule_handler != nullptr,
                                                               s_countdown_handler != nullptr,
                                                               s_pomodoro_handler != nullptr,
                                                               s_weather_city_handler != nullptr);
@@ -436,6 +453,11 @@ bool xiaozhi_mcp_flush_pending_settings()
     }
     s_volume_save_pending.store(false);
     return true;
+}
+
+void xiaozhi_mcp_register_alarm_rule_handler(XiaozhiMcpAlarmRuleHandler handler)
+{
+    s_alarm_rule_handler = handler;
 }
 
 void xiaozhi_mcp_register_alarm_handler(XiaozhiMcpAlarmHandler handler)

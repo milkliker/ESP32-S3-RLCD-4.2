@@ -2,6 +2,7 @@
 #include "app_task_startup.h"
 
 #include "alarm_services.h"
+#include "alarm_rules_services.h"
 #include "app_constexpr.h"
 #include "app_metadata.h"
 #include "input_tasks.h"
@@ -48,6 +49,8 @@ constexpr const char *kUiTaskName = "ui_task";
 constexpr const char *kButtonTaskName = "button_task";
 constexpr const char *kAlarmTaskName = "alarm_task";
 constexpr const char *kPomodoroTaskName = "pomodoro_task";
+constexpr const char *kAlarmRulesTaskName = "alarm_rules_task";
+constexpr uint32_t kAlarmRulesTaskStack = 4096;
 
 struct AppTaskSpec {
     RegularAppTaskId id;
@@ -67,6 +70,7 @@ constexpr AppTaskSpec kRegularAppTasks[] = {
     {RegularAppTaskId::kButton, button_task, kButtonTaskName, kButtonTaskStack, kInputTaskPriority, false, kUiTaskCore},
     {RegularAppTaskId::kAlarm, alarm_task, kAlarmTaskName, kAlarmTaskStack, kNormalServiceTaskPriority, false, kUiTaskCore},
     {RegularAppTaskId::kPomodoro, pomodoro_task, kPomodoroTaskName, kPomodoroTaskStack, kNormalServiceTaskPriority, false, kUiTaskCore},
+    {RegularAppTaskId::kAlarmRules, alarm_rules_task, kAlarmRulesTaskName, kAlarmRulesTaskStack, kNormalServiceTaskPriority, false, kUiTaskCore},
 };
 
 constexpr bool app_task_specs_valid()

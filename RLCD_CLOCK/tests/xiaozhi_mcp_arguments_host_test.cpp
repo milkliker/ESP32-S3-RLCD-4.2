@@ -176,6 +176,71 @@ void test_malformed_argument_roots()
     expect(!xiaozhi_mcp_arguments::parse_weather_city(root.get(), &city),
            "array weather city arguments accepted");
 }
+
+void test_alarm_rules()
+{
+    using xiaozhi_mcp_arguments::parse_alarm_rules;
+    XiaozhiMcpAlarmRuleRequest rules = {};
+
+    // set：完整参数
+    XiaozhiJsonOwner set_rule;
+    parse(&set_rule,
+          R"({"action":"set","hour":7,"minute":30,"recur":2,"dow_mask":124,"label":"起床"})");
+    expect(parse_alarm_rules(set_rule.get(), &rules), "valid weekly set rejected");
+    expect(rules.action == 0 && rules.hour == 7 && rules.minute == 30 &&
+           rules.recur == 2 && rules.dow_mask == 124, "weekly set fields wrong");
+
+    // set：缺省 dow_mask 回落工作日掩码
+    XiaozhiJsonOwner set_daily;
+    parse(&set_daily, R"({"action":"set","hour":6,"minute":0,"recur":1})");
+    expect(parse_alarm_rules(set_daily.get(), &rules), "valid daily set rejected");
+    expect(rules.recur == 1 && rules.dow_mask == 0x7C, "daily default mask wrong");
+
+    // set：recur 越界
+    XiaozhiJsonOwner bad_recur;
+    parse(&bad_recur, R"({"action":"set","hour":6,"minute":0,"recur":9})");
+    expect(!parse_alarm_rules(bad_recur.get(), &rules), "recur 9 accepted");
+
+    // set：缺少 hour
+    XiaozhiJsonOwner no_hour;
+    parse(&no_hour, R"({"action":"set","minute":0,"recur":1})");
+    expect(!parse_alarm_rules(no_hour.get(), &rules), "missing hour accepted");
+
+    // list：无需参数
+    XiaozhiJsonOwner list;
+    parse(&list, R"({"action":"list"})");
+    expect(parse_alarm_rules(list.get(), &rules) && rules.action == 1,
+           "list rejected");
+
+    // toggle：id 必填
+    XiaozhiJsonOwner toggle_ok;
+    parse(&toggle_ok, R"({"action":"toggle","id":3,"enabled":false})");
+    expect(parse_alarm_rules(toggle_ok.get(), &rules) && rules.id == 3 &&
+           !rules.enabled, "toggle rejected");
+    XiaozhiJsonOwner toggle_no_id;
+    parse(&toggle_no_id, R"({"action":"toggle","enabled":true})");
+    expect(!parse_alarm_rules(toggle_no_id.get(), &rules),
+           "toggle without id accepted");
+
+    // remove：id 必填
+    XiaozhiJsonOwner remove_ok;
+    parse(&remove_ok, R"({"action":"remove","id":5})");
+    expect(parse_alarm_rules(remove_ok.get(), &rules) && rules.action == 3,
+           "remove rejected");
+
+    // 未知 action
+    XiaozhiJsonOwner bad_action;
+    parse(&bad_action, R"({"action":"destroy"})");
+    expect(!parse_alarm_rules(bad_action.get(), &rules), "unknown action accepted");
+
+    // monthly_nth 参数
+    XiaozhiJsonOwner nth;
+    parse(&nth,
+          R"({"action":"set","hour":8,"minute":15,"recur":4,"nth":2,"weekday":5})");
+    expect(parse_alarm_rules(nth.get(), &rules) && rules.nth == 2 &&
+           rules.weekday == 5, "nth set rejected");
+}
+
 } // namespace
 
 int main()
@@ -185,6 +250,7 @@ int main()
     test_countdown();
     test_pomodoro();
     test_weather_city();
+    test_alarm_rules();
     test_malformed_argument_roots();
     std::puts("Xiaozhi MCP argument host tests passed");
     return 0;

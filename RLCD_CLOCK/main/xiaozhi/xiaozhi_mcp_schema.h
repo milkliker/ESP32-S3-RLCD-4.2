@@ -9,6 +9,7 @@ extern const char kDeviceStatusTool[];
 extern const char kSetVolumeTool[];
 extern const char kSetAlarmTool[];
 extern const char kDisableAlarmTool[];
+extern const char kAlarmRulesTool[];
 extern const char kSetCountdownTool[];
 extern const char kPomodoroControlTool[];
 extern const char kSetWeatherCityTool[];

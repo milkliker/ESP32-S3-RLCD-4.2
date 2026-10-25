@@ -5,6 +5,9 @@
 #include "alarm_services.h"
 #include "app_constexpr.h"
 #include "app_metadata.h"
+#include "alarm_rules_services.h"
+#include <time.h>
+
 #include "app_tick_time.h"
 #include "chime_runtime_state.h"
 
@@ -89,6 +92,23 @@ SettingsSecondaryStateSnapshot settings_secondary_state_snapshot(
             snapshot.alarm_enabled = alarm.enabled;
             snapshot.alarm_hour = alarm.hour;
             snapshot.alarm_minute = alarm.minute;
+            AlarmRulesListResult rules = {};
+            if (alarm_rules_list(&rules) && rules.count > 0) {
+                snapshot.alarm_rule_count =
+                    rules.count > 255 ? 255 : static_cast<uint8_t>(rules.count);
+                AlarmRule next_rule = {};
+                time_t next_epoch = 0;
+                if (alarm_rules_next_trigger(&next_rule, &next_epoch)) {
+                    struct tm next_local = {};
+                    if (localtime_r(&next_epoch, &next_local) != nullptr) {
+                        snapshot.alarm_rule_next_valid = true;
+                        snapshot.alarm_rule_next_hour =
+                            static_cast<uint8_t>(next_local.tm_hour);
+                        snapshot.alarm_rule_next_minute =
+                            static_cast<uint8_t>(next_local.tm_min);
+                    }
+                }
+            }
             snapshot.xiaozhi_auto_return_enabled =
                 xiaozhi_auto_return_enabled_load();
         }

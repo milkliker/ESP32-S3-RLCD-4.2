@@ -9,6 +9,7 @@
 #include "app_task_startup.h"
 #include "lvgl_bsp.h"
 #include "alarm_services_internal.h"
+#include "alarm_rules_services.h"
 #include "battery_runtime_state_internal.h"
 #include "pomodoro_services_internal.h"
 #include "weather_city_mcp_internal.h"
@@ -79,6 +80,8 @@
 #define MAIN_SETTINGS_FEEDBACK_STATE_INIT_FAILED_LOG_FORMAT "settings feedback state initialization failed"
 #define MAIN_WORK_PAGE_CATALOG_INIT_FAILED_LOG_FORMAT "work page catalog initialization failed"
 #define MAIN_POMODORO_STATE_INIT_FAILED_LOG_FORMAT "pomodoro runtime state initialization failed"
+#define MAIN_ALARM_RULES_STATE_INIT_FAILED_LOG_FORMAT "alarm rules runtime state initialization failed"
+#define MAIN_ALARM_RULES_MCP_REGISTER_FAILED_LOG_FORMAT "alarm rules MCP registration failed"
 #define MAIN_ALARM_STATE_INIT_FAILED_LOG_FORMAT "alarm runtime state initialization failed"
 #define MAIN_INVALID_BOOT_TASK_LOG_FORMAT "%s: invalid boot task request"
 #define MAIN_BOOT_TASK_CREATE_FAILED_LOG_FORMAT "%s"
@@ -139,6 +142,8 @@ constexpr AppInitializerSpec kCoreRuntimeStateInitializers[] = {
 
 constexpr AppInitializerSpec kFeatureRuntimeInitializers[] = {
     {alarm_services_init, MAIN_ALARM_STATE_INIT_FAILED_LOG_FORMAT},
+    {alarm_rules_init, MAIN_ALARM_RULES_STATE_INIT_FAILED_LOG_FORMAT},
+    {alarm_rules_mcp_register, MAIN_ALARM_RULES_MCP_REGISTER_FAILED_LOG_FORMAT},
     {pomodoro_services_init, MAIN_POMODORO_STATE_INIT_FAILED_LOG_FORMAT},
     {weather_city_mcp_init, MAIN_WEATHER_CITY_MCP_STATE_INIT_FAILED_LOG_FORMAT},
 };

@@ -84,6 +84,81 @@ bool parse_alarm(const cJSON *arguments, XiaozhiMcpAlarmRequest *request)
     return true;
 }
 
+bool parse_alarm_rules(const cJSON *arguments, XiaozhiMcpAlarmRuleRequest *request)
+{
+    if (!request) {
+        return false;
+    }
+    XiaozhiMcpAlarmRuleRequest parsed = {};
+    const cJSON *action = cJSON_GetObjectItem(arguments, "action");
+    if (!action || !cJSON_IsString(action)) {
+        return false;
+    }
+    const char *action_text = action->valuestring;
+    if (strcmp(action_text, "set") == 0) {
+        parsed.action = 0;
+    } else if (strcmp(action_text, "list") == 0) {
+        parsed.action = 1;
+    } else if (strcmp(action_text, "toggle") == 0) {
+        parsed.action = 2;
+    } else if (strcmp(action_text, "remove") == 0) {
+        parsed.action = 3;
+    } else {
+        return false;
+    }
+    // id/toggle/remove 必填；set 时可选（预留按 id 覆盖）
+    const cJSON *id = cJSON_GetObjectItem(arguments, "id");
+    if (id && cJSON_IsNumber(id)) {
+        parsed.id = static_cast<int>(id->valuedouble);
+    }
+    if (parsed.action == 2 || parsed.action == 3) {
+        if (parsed.id < 1 || parsed.id > 255) {
+            return false;
+        }
+    }
+    const cJSON *enabled = cJSON_GetObjectItem(arguments, "enabled");
+    if (enabled && !cJSON_IsBool(enabled)) {
+        return false;
+    }
+    parsed.enabled = cJSON_IsTrue(enabled);
+    if (parsed.action == 0) {
+        if (!json_integer_in_range(arguments, "hour", 0, kHoursPerDay - 1, &parsed.hour) ||
+            !json_integer_in_range(arguments, "minute", 0, kMinutesPerHour - 1, &parsed.minute)) {
+            return false;
+        }
+        const cJSON *recur = cJSON_GetObjectItem(arguments, "recur");
+        int recur_value = 0;
+        if (recur && cJSON_IsNumber(recur)) {
+            recur_value = static_cast<int>(recur->valuedouble);
+        }
+        if (recur_value < 0 || recur_value > 5) {
+            return false;
+        }
+        parsed.recur = recur_value;
+        auto range_or_default = [&](const char *name, int minimum, int maximum, int fallback) {
+            const cJSON *item = cJSON_GetObjectItem(arguments, name);
+            if (!item || !cJSON_IsNumber(item)) {
+                return fallback;
+            }
+            int value = static_cast<int>(item->valuedouble);
+            return value >= minimum && value <= maximum ? value : -1000;
+        };
+        parsed.dow_mask = range_or_default("dow_mask", 1, 127, 0x7C);
+        parsed.mday = range_or_default("mday", 1, 31, 1);
+        parsed.nth = range_or_default("nth", 1, 5, 1);
+        parsed.weekday = range_or_default("weekday", 0, 6, 1);
+        parsed.lunar_day = range_or_default("lunar_day", 1, 30, 15);
+        if (parsed.dow_mask == -1000 || parsed.mday == -1000 ||
+            parsed.nth == -1000 || parsed.weekday == -1000 ||
+            parsed.lunar_day == -1000) {
+            return false;
+        }
+    }
+    copy_optional_label(arguments, parsed.label, sizeof(parsed.label));
+    *request = parsed;
+    return true;
+}
+
 bool parse_countdown(const cJSON *arguments, XiaozhiMcpCountdownRequest *request)
 {
     if (!request) {

@@ -10,6 +10,7 @@ const char kDeviceStatusTool[] = "self.get_device_status";
 const char kSetVolumeTool[] = "self.audio_speaker.set_volume";
 const char kSetAlarmTool[] = "self.alarm.set";
 const char kDisableAlarmTool[] = "self.alarm.disable";
+const char kAlarmRulesTool[] = "self.alarm.rules";
 const char kSetCountdownTool[] = "self.timer.set_countdown";
 const char kPomodoroControlTool[] = "self.pomodoro.control";
 const char kSetWeatherCityTool[] = "self.weather.set_city";
@@ -27,6 +28,10 @@ constexpr const char *kJsonTypeString = "string";
 constexpr const char *kJsonTypeInteger = "integer";
 constexpr const char *kJsonTypeBoolean = "boolean";
 constexpr const char *kPomodoroActionStart = "start";
+constexpr const char *kAlarmRulesActionSet = "set";
+constexpr const char *kAlarmRulesActionList = "list";
+constexpr const char *kAlarmRulesActionToggle = "toggle";
+constexpr const char *kAlarmRulesActionRemove = "remove";
 constexpr const char *kPomodoroActionCancel = "cancel";
 constexpr const char *kPomodoroActionStatus = "status";
 constexpr const char *kDeviceStatusDescription =
@@ -45,6 +50,13 @@ constexpr const char *kPomodoroControlDescription =
     "Do not use alarm tools for focus or Pomodoro requests, and do not use this tool for ordinary reminders.";
 constexpr const char *kSetWeatherCityDescription =
     "Set the QWeather location from the user's spoken city name. Pass the city exactly as spoken, including an optional Chinese 市 suffix; the device normalizes and validates a manual city with QWeather before saving. To restore IP-based automatic location, call this same tool with city=自动. Never claim the location changed unless the tool returned success.";
+constexpr const char *kAlarmRulesDescription =
+    "Manage repeating alarms in addition to the one-shot alarm. Use for any request containing 每天, 每周, 周一 to 周日, 工作日, 每月, 农历 repeats. "
+    "action=set creates an enabled repeating rule and requires hour and minute plus a recur value: 0=once(same as self.alarm.set but keeps label), 1=daily, 2=weekly (dow_mask bitmask: bit0=Sunday..bit6=Saturday, combine multiple bits; 0x7C means Monday to Friday workdays), 3=monthly (mday 1-31; if a month lacks the day it fires on the month end), 4=monthly_nth (nth 1-4 plus weekday 0=Sunday..6=Saturday; nth=5 means the last such weekday of the month), 5=lunar_monthly (lunar_day 1-30 by the Chinese lunar calendar; fires on month end when the lunar month is short). "
+    "action=list returns all rules with their id, time, repeat kind and enabled state; call it first whenever the user refers to an alarm by description rather than id, or asks what alarms exist. "
+    "action=toggle switches one rule on or off by id (enabled=true to enable). "
+    "action=remove deletes one rule by id. "
+    "Never claim an alarm was created or changed unless the tool returned success.";
 constexpr int kHoursPerDay = 24;
 constexpr int kMinutesPerHour = 60;
 constexpr uint32_t kMaxCountdownSeconds = 7U * 24U * 60U * 60U;
@@ -266,6 +278,49 @@ cJSON *create_weather_city_tool()
     return create_tool(kSetWeatherCityTool, kSetWeatherCityDescription, schema);
 }
 
+cJSON *create_alarm_rules_tool()
+{
+    cJSON *schema = create_object_schema();
+    if (!schema) {
+        return nullptr;
+    }
+    // action 为必选枚举
+    cJSON *properties = cJSON_GetObjectItem(schema, kJsonFieldProperties);
+    cJSON *action = cJSON_CreateObject();
+    cJSON *values = cJSON_CreateArray();
+    cJSON *required = cJSON_CreateArray();
+    if (!cJSON_IsObject(properties) || !action || !values || !required ||
+        !add_string(action, kJsonFieldType, kJsonTypeString) ||
+        !add_owned_item_to_array(values, cJSON_CreateString(kAlarmRulesActionSet)) ||
+        !add_owned_item_to_array(values, cJSON_CreateString(kAlarmRulesActionList)) ||
+        !add_owned_item_to_array(values, cJSON_CreateString(kAlarmRulesActionToggle)) ||
+        !add_owned_item_to_array(values, cJSON_CreateString(kAlarmRulesActionRemove)) ||
+        !add_owned_item_to_object(action, "enum", values) ||
+        !add_owned_item_to_object(properties, kJsonFieldAction, action) ||
+        !add_owned_item_to_array(required, cJSON_CreateString(kJsonFieldAction))) {
+        cJSON_Delete(action);
+        cJSON_Delete(values);
+        cJSON_Delete(required);
+        cJSON_Delete(schema);
+        return nullptr;
+    }
+    if (!add_optional_integer(schema, "id", 1, 255) ||
+        !add_optional_integer(schema, "hour", 0, kHoursPerDay - 1) ||
+        !add_optional_integer(schema, "minute", 0, kMinutesPerHour - 1) ||
+        !add_optional_integer(schema, "recur", 0, 5) ||
+        !add_optional_integer(schema, "dow_mask", 1, 127) ||
+        !add_optional_integer(schema, "mday", 1, 31) ||
+        !add_optional_integer(schema, "nth", 1, 5) ||
+        !add_optional_integer(schema, "weekday", 0, 6) ||
+        !add_optional_integer(schema, "lunar_day", 1, 30) ||
+        !add_optional_boolean(schema, "enabled") ||
+        !add_optional_string(schema, "label")) {
+        cJSON_Delete(schema);
+        return nullptr;
+    }
+    return create_tool(kAlarmRulesTool, kAlarmRulesDescription, schema);
+}
+
 bool add_tool_if_present(cJSON *tools, cJSON *tool)
 {
     return add_owned_item_to_array(tools, tool);
@@ -274,6 +329,7 @@ bool add_tool_if_present(cJSON *tools, cJSON *tool)
 
 cJSON *create_tools_list_result(bool alarm_enabled,
                                 bool alarm_disable_enabled,
+                                bool alarm_rules_enabled,
                                 bool countdown_enabled,
                                 bool pomodoro_enabled,
                                 bool weather_city_enabled)
@@ -300,6 +356,8 @@ cJSON *create_tools_list_result(bool alarm_enabled,
          !add_tool_if_present(tools, create_tool(kDisableAlarmTool,
                                                  kDisableAlarmDescription,
                                                  create_object_schema()))) ||
+        (alarm_rules_enabled &&
+         !add_tool_if_present(tools, create_alarm_rules_tool())) ||
         (countdown_enabled && !add_tool_if_present(tools, create_countdown_tool())) ||
         (pomodoro_enabled && !add_tool_if_present(tools, create_pomodoro_tool())) ||
         (weather_city_enabled && !add_tool_if_present(tools, create_weather_city_tool()))) {
