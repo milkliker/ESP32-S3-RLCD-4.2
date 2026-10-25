@@ -58,7 +58,7 @@ bool handle_set(const XiaozhiMcpAlarmRuleRequest &request, char *result, size_t 
     }
     AlarmRule saved = rule;
     saved.id = id;
-    char described[96] = {};
+    char described[160] = {};
     describe_rule(saved, described, sizeof(described));
     const char *quiet_note =
         alarm_quiet_hours_active(rule.hour, rule.minute)
@@ -79,7 +79,7 @@ bool handle_list(char *result, size_t result_len)
     used += static_cast<size_t>(
         snprintf(result + used, result_len - used, "{\"rules\":["));
     for (int i = 0; i < listing.count && used < result_len; ++i) {
-        char described[96] = {};
+        char described[160] = {};
         describe_rule(listing.rules[i], described, sizeof(described));
         used += static_cast<size_t>(snprintf(result + used,
                                              result_len - used,
