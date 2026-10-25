@@ -17,8 +17,8 @@ struct SettingsSecondaryStateSnapshot {
     bool alarm_enabled;
     uint8_t alarm_hour;
     uint8_t alarm_minute;
-    uint8_t alarm_rule_count;
-    // 位打包：bit15 有效位，bit10-14 小时(0-23)，bit4-9 分钟(0-59)；无效时为 0。
+    // 重复闹钟摘要位打包：bit15 有效位，bit10-14 下次小时(0-23)，
+    // bit4-9 下次分钟(0-59)，bit0-3 条数(0-15，超出封顶)；无规则时为 0。
     uint16_t alarm_rule_next;
     bool xiaozhi_auto_return_enabled;
 };

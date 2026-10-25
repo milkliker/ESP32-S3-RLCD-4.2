@@ -32,6 +32,7 @@ constexpr const char *kSettingsPageOrderText = "页面顺序";
 constexpr const char *kSettingsAlarmOffText = "闹钟 无";
 constexpr const char *kSettingsAlarmOnFormat = "闹钟 %02d:%02d";
 constexpr const char *kSettingsAlarmRulesFormat = "闹钟 %u条 下次 %02u:%02u";
+constexpr const char *kSettingsAlarmRulesCountFormat = "闹钟 %u条";
 constexpr const char *kSettingsXiaozhiAutoReturnText = "小智节能";
 constexpr const char *kSettingsGalleryRotationFormat = "图片切换 %s";
 constexpr const char *kSettingsOfflineFormat = "离线模式 %s";
@@ -123,14 +124,20 @@ void populate_settings_secondary_items(
         set_secondary_text(secondary_items,
                            kDisplaySettingsOrderItem,
                            kSettingsPageOrderText);
-        if (state.alarm_rule_count > 0 &&
-            (state.alarm_rule_next & 0x8000u) != 0) {
-            format_secondary_text(secondary_items,
-                                  kDisplaySettingsAlarmItem,
-                                  kSettingsAlarmRulesFormat,
-                                  static_cast<unsigned>(state.alarm_rule_count),
-                                  static_cast<unsigned>((state.alarm_rule_next >> 10) & 0x1Fu),
-                                  static_cast<unsigned>((state.alarm_rule_next >> 4) & 0x3Fu));
+        if (state.alarm_rule_next != 0) {
+            if ((state.alarm_rule_next & 0x8000u) != 0) {
+                format_secondary_text(secondary_items,
+                                      kDisplaySettingsAlarmItem,
+                                      kSettingsAlarmRulesFormat,
+                                      state.alarm_rule_next & 0x0Fu,
+                                      static_cast<unsigned>((state.alarm_rule_next >> 10) & 0x1Fu),
+                                      static_cast<unsigned>((state.alarm_rule_next >> 4) & 0x3Fu));
+            } else {
+                format_secondary_text(secondary_items,
+                                      kDisplaySettingsAlarmItem,
+                                      kSettingsAlarmRulesCountFormat,
+                                      state.alarm_rule_next & 0x0Fu);
+            }
         } else if (state.alarm_enabled) {
             format_secondary_text(secondary_items,
                                   kDisplaySettingsAlarmItem,

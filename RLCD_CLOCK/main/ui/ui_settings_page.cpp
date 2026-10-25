@@ -69,7 +69,8 @@ static_assert(sizeof(SettingsRenderCache) <= 48,
               "settings render cache must remain a compact UI-only state");
 static_assert(kWorkPageCount <= 8,
               "settings switch snapshot stores the work-page mask in one byte");
-static_assert(sizeof(SettingsSecondaryStateSnapshot) <= 12,
+// 重复闹钟摘要以单个位打包 uint16 计入，仅比原布局多 2 字节，仍为栈上轻量快照。
+static_assert(sizeof(SettingsSecondaryStateSnapshot) <= 14,
               "settings secondary snapshot must remain lightweight");
 
 SettingsSecondaryStateSnapshot settings_secondary_state_snapshot(
@@ -94,8 +95,8 @@ SettingsSecondaryStateSnapshot settings_secondary_state_snapshot(
             snapshot.alarm_minute = alarm.minute;
             AlarmRulesListResult rules = {};
             if (alarm_rules_list(&rules) && rules.count > 0) {
-                snapshot.alarm_rule_count =
-                    rules.count > 255 ? 255 : static_cast<uint8_t>(rules.count);
+                const unsigned capped_count =
+                    rules.count > 15 ? 15u : static_cast<unsigned>(rules.count);
                 AlarmRule next_rule = {};
                 time_t next_epoch = 0;
                 if (alarm_rules_next_trigger(&next_rule, &next_epoch)) {
@@ -105,8 +106,11 @@ SettingsSecondaryStateSnapshot settings_secondary_state_snapshot(
                             static_cast<uint16_t>(
                                 0x8000u |
                                 (next_local.tm_hour & 0x1F) << 10 |
-                                (next_local.tm_min & 0x3F) << 4);
+                                (next_local.tm_min & 0x3F) << 4 |
+                                capped_count);
                     }
+                } else {
+                    snapshot.alarm_rule_next = static_cast<uint16_t>(capped_count);
                 }
             }
             snapshot.xiaozhi_auto_return_enabled =
