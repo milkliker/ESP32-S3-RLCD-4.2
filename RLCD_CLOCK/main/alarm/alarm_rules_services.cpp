@@ -158,6 +158,10 @@ void evaluate_minute(const struct tm &local, int64_t minute_ms)
             }
             s_last_fired_id = rule.id;
             s_last_fired_minute_ms = minute_ms;
+            if (alarm_quiet_hours_active(rule.hour, rule.minute)) {
+                // 夜间静音门禁：窗口内不出声也不消费，下一分钟自然不再匹配。
+                continue;
+            }
             fired = rule;
             has_fired = true;
             remove_after = !alarm_rule_is_recurring(&fired);
@@ -342,7 +346,9 @@ bool alarm_rules_next_trigger(AlarmRule *rule_out, time_t *next_epoch_out)
         return false;
     }
     for (int i = 0; i < s_rule_count; ++i) {
-        if (!s_rules[i].enabled) {
+        if (!s_rules[i].enabled ||
+            alarm_quiet_hours_active(s_rules[i].hour, s_rules[i].minute)) {
+            // 静音窗口内的规则永远不会出声，不作为“下次触发”展示。
             continue;
         }
         time_t candidate = 0;

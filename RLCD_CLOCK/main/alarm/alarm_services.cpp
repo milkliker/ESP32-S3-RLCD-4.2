@@ -2,6 +2,7 @@
 #include "alarm_services_internal.h"
 
 #include "alarm_replacement_policy.h"
+#include "alarm_rule.h"
 #include "alarm_runtime_state_internal.h"
 #include "alarm_storage.h"
 #include "alarm_task_wait_policy.h"
@@ -290,6 +291,21 @@ void run_alarm_ring()
     s_stop_requested.store(false);
     AlarmSnapshot snapshot = {};
     alarm_get_snapshot(&snapshot);
+    // 夜间静音门禁：静音窗口内强制不出声，单次闹钟按已消费处理（否则会在窗口结束后追响）。
+    if (alarm_quiet_hours_active(snapshot.hour, snapshot.minute)) {
+        ESP_LOGW(TAG,
+                 "alarm %02u:%02u suppressed by quiet hours",
+                 static_cast<unsigned>(snapshot.hour),
+                 static_cast<unsigned>(snapshot.minute));
+        clear_pending_alarm_replacement();
+        (void)alarm_runtime_pending_save_discard();
+        s_save_retry_pending.store(false, std::memory_order_release);
+        publish_alarm_state(false, false, snapshot.hour, snapshot.minute);
+        if (!persist_alarm(false, snapshot.hour, snapshot.minute)) {
+            s_auto_disable_save_pending.store(true, std::memory_order_release);
+        }
+        return;
+    }
     clear_pending_alarm_replacement();
     // 先关闭运行态，再释放小智音频后写 NVS；避免实时语音期间 Flash 写入。
     (void)alarm_runtime_pending_save_discard();

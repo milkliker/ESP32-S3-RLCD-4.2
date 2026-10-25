@@ -122,6 +122,24 @@ bool alarm_rule_valid(const AlarmRule *rule)
     }
 }
 
+bool alarm_quiet_hours_active(int hour, int minute)
+{
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return false; // 非法时间交给上层校验，不视为静音
+    }
+    constexpr int kQuietStartHour = 21;
+    constexpr int kQuietStartMinute = 30;
+    constexpr int kQuietEndHour = 6;
+    constexpr int kQuietEndMinute = 30;
+    if (hour > kQuietStartHour || (hour == kQuietStartHour && minute >= kQuietStartMinute)) {
+        return true; // 21:30 - 23:59
+    }
+    if (hour < kQuietEndHour || (hour == kQuietEndHour && minute < kQuietEndMinute)) {
+        return true; // 00:00 - 06:29
+    }
+    return false;
+}
+
 bool alarm_rule_is_recurring(const AlarmRule *rule)
 {
     return rule && rule->kind != kAlarmRuleOnce;

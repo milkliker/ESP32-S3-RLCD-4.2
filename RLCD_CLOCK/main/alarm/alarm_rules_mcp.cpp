@@ -27,14 +27,19 @@ void describe_rule(const AlarmRule &rule, char *out, size_t size)
 {
     char kind[24] = {};
     alarm_rule_describe(&rule, kind, sizeof(kind));
-    snprintf(out, size, "{\"id\":%u,\"time\":\"%02u:%02u\",\"repeat\":\"%s\",\"enabled\":%s%s%s}",
+    const bool quiet_muted = alarm_quiet_hours_active(rule.hour, rule.minute);
+    snprintf(out, size,
+             "{\"id\":%u,\"time\":\"%02u:%02u\",\"repeat\":\"%s\",\"enabled\":%s"
+             "%s%s%s,\"quiet_muted\":%s}",
              rule.id,
              rule.hour,
              rule.minute,
              kind,
              rule.enabled ? "true" : "false",
              rule.label[0] ? ",\"label\":\"" : "",
-             rule.label[0] ? rule.label : "");
+             rule.label[0] ? rule.label : "",
+             rule.label[0] ? "\"" : "",
+             quiet_muted ? "true" : "false");
 }
 
 bool handle_set(const XiaozhiMcpAlarmRuleRequest &request, char *result, size_t result_len)
@@ -55,7 +60,11 @@ bool handle_set(const XiaozhiMcpAlarmRuleRequest &request, char *result, size_t 
     saved.id = id;
     char described[96] = {};
     describe_rule(saved, described, sizeof(described));
-    snprintf(result, result_len, "{\"created\":true,\"rule\":%s}", described);
+    const char *quiet_note =
+        alarm_quiet_hours_active(rule.hour, rule.minute)
+            ? ",\"note\":\"该时间处于21:30-06:30静音窗口，闹钟不会响铃\""
+            : "";
+    snprintf(result, result_len, "{\"created\":true,\"rule\":%s%s}", described, quiet_note);
     return true;
 }
 

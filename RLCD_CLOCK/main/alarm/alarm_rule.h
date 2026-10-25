@@ -49,6 +49,10 @@ bool alarm_rule_next_occurrence(const struct tm *now_local,
                                 const AlarmRule *rule,
                                 time_t *out_epoch);
 
+// 夜间静音门禁：该本地时刻是否处于强制静音窗口（21:30 - 次日 06:30，含两端起点）。
+// 引擎在响铃前强制调用；窗口内任何闹钟不出声。纯逻辑，宿主可测。
+bool alarm_quiet_hours_active(int hour, int minute);
+
 // 规则是否命中给定本地时刻所在的分钟（用于任务循环逐分钟检查）。
 bool alarm_rule_matches_minute(const struct tm *local, const AlarmRule *rule);
 
