@@ -16,6 +16,7 @@ extern const char kSetWeatherCityTool[];
 
 cJSON *create_tools_list_result(bool alarm_enabled,
                                 bool alarm_disable_enabled,
+                                bool alarm_rules_enabled,
                                 bool countdown_enabled,
                                 bool pomodoro_enabled,
                                 bool weather_city_enabled);

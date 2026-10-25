@@ -137,40 +137,43 @@ void ring_blocking(const AlarmRule &rule)
 // 遍历启用的重复规则，命中当前分钟则响铃；once 规则响后删除。
 void evaluate_minute(const struct tm &local, int64_t minute_ms)
 {
-    if (pomodoro_conflicts_with_minute(local)) {
+    AlarmRule fired = {};
+    bool has_fired = false;
+    bool remove_after = false;
+    {
+        if (pomodoro_conflicts_with_minute(local)) {
+            return;
+        }
+        ScopedSemaphoreLock lock(s_mutex.handle());
+        if (!lock) {
+            return;
+        }
+        for (int i = 0; i < s_rule_count; ++i) {
+            AlarmRule &rule = s_rules[i];
+            if (!rule.enabled || !alarm_rule_matches_minute(&local, &rule)) {
+                continue;
+            }
+            if (rule.id == s_last_fired_id && minute_ms == s_last_fired_minute_ms) {
+                continue;
+            }
+            s_last_fired_id = rule.id;
+            s_last_fired_minute_ms = minute_ms;
+            fired = rule;
+            has_fired = true;
+            remove_after = !alarm_rule_is_recurring(&fired);
+            if (remove_after) {
+                s_rules[i] = s_rules[s_rule_count - 1];
+                --s_rule_count;
+            }
+            break; // 一分钟内只触发一条
+        }
+    }
+    if (!has_fired) {
         return;
     }
-    ScopedSemaphoreLock lock(s_mutex.handle());
-    if (!lock) {
-        return;
-    }
-    for (int i = 0; i < s_rule_count; ++i) {
-        AlarmRule &rule = s_rules[i];
-        if (!rule.enabled || !alarm_rule_matches_minute(local, &rule)) {
-            continue;
-        }
-        if (rule.id == s_last_fired_id && minute_ms == s_last_fired_minute_ms) {
-            continue;
-        }
-        s_last_fired_id = rule.id;
-        s_last_fired_minute_ms = minute_ms;
-        const bool remove_after = !alarm_rule_is_recurring(&rule);
-        AlarmRule fired = rule;
-        lock.release(); // 释放互斥量后再做耗时响铃与 NVS 写入
-        ring_blocking(fired);
-        if (remove_after) {
-            if (ScopedSemaphoreLock save_lock(s_mutex.handle())) {
-                int index = -1;
-                if (find_rule_unlocked(fired.id, &index)) {
-                    s_rules[index] = s_rules[s_rule_count - 1];
-                    --s_rule_count;
-                }
-            }
-            if (!persist_erase(fired.id)) {
-                ESP_LOGW(kTag, "once rule %u erase failed", fired.id);
-            }
-        }
-        return; // 一分钟内只触发一条
+    ring_blocking(fired);
+    if (remove_after && !persist_erase(fired.id)) {
+        ESP_LOGW(kTag, "once rule %u erase failed", fired.id);
     }
 }
 
