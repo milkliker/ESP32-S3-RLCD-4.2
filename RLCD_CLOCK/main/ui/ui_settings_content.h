@@ -18,9 +18,8 @@ struct SettingsSecondaryStateSnapshot {
     uint8_t alarm_hour;
     uint8_t alarm_minute;
     uint8_t alarm_rule_count;
-    bool alarm_rule_next_valid;
-    uint8_t alarm_rule_next_hour;
-    uint8_t alarm_rule_next_minute;
+    // 位打包：bit15 有效位，bit10-14 小时(0-23)，bit4-9 分钟(0-59)；无效时为 0。
+    uint16_t alarm_rule_next;
     bool xiaozhi_auto_return_enabled;
 };
 

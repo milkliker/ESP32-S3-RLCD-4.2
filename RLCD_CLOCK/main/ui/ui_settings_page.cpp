@@ -101,11 +101,11 @@ SettingsSecondaryStateSnapshot settings_secondary_state_snapshot(
                 if (alarm_rules_next_trigger(&next_rule, &next_epoch)) {
                     struct tm next_local = {};
                     if (localtime_r(&next_epoch, &next_local) != nullptr) {
-                        snapshot.alarm_rule_next_valid = true;
-                        snapshot.alarm_rule_next_hour =
-                            static_cast<uint8_t>(next_local.tm_hour);
-                        snapshot.alarm_rule_next_minute =
-                            static_cast<uint8_t>(next_local.tm_min);
+                        snapshot.alarm_rule_next =
+                            static_cast<uint16_t>(
+                                0x8000u |
+                                (next_local.tm_hour & 0x1F) << 10 |
+                                (next_local.tm_min & 0x3F) << 4);
                     }
                 }
             }

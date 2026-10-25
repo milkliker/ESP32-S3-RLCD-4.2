@@ -123,13 +123,14 @@ void populate_settings_secondary_items(
         set_secondary_text(secondary_items,
                            kDisplaySettingsOrderItem,
                            kSettingsPageOrderText);
-        if (state.alarm_rule_count > 0 && state.alarm_rule_next_valid) {
+        if (state.alarm_rule_count > 0 &&
+            (state.alarm_rule_next & 0x8000u) != 0) {
             format_secondary_text(secondary_items,
                                   kDisplaySettingsAlarmItem,
                                   kSettingsAlarmRulesFormat,
                                   static_cast<unsigned>(state.alarm_rule_count),
-                                  static_cast<unsigned>(state.alarm_rule_next_hour),
-                                  static_cast<unsigned>(state.alarm_rule_next_minute));
+                                  static_cast<unsigned>((state.alarm_rule_next >> 10) & 0x1Fu),
+                                  static_cast<unsigned>((state.alarm_rule_next >> 4) & 0x3Fu));
         } else if (state.alarm_enabled) {
             format_secondary_text(secondary_items,
                                   kDisplaySettingsAlarmItem,
